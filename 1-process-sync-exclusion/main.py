@@ -59,7 +59,7 @@ class TicketMachine(object):
 
         if self.next_clerk_number >= self.next_custom_number:
             # We need a new ticket.
-            ticket = Ticket(self.next_custom_number)
+            ticket = Ticket(self.next_clerk_number)
             self.tickets.append(ticket)
         else:
             # The ticket already exists.
@@ -119,4 +119,6 @@ if __name__ == '__main__':
     Custom('1', 1, 10, ticket_machine).start()
     Custom('2', 5, 2, ticket_machine).start()
     Custom('3', 6, 3, ticket_machine).start()
+    Custom('4', 6, 3, ticket_machine).start()
     Clerk('1', ticket_machine).start()
+    Clerk('2', ticket_machine).start()
