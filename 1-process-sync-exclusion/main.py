@@ -16,13 +16,11 @@ class Ticket(object):
 
     def wait(self):
         self.custom.release()
+        self.clerk.acquire()
 
     def call(self):
         self.custom.acquire()
         self.clerk.release()
-
-    def sit(self):
-        self.clerk.acquire()
 
     def satisfied(self):
         self.custom.release()
@@ -87,7 +85,6 @@ class Custom(Thread):
         self.logger.info('Got ticket %s.', ticket)
 
         ticket.wait()
-        ticket.sit()
 
         self.logger.info('Begin to be served.')
         sleep(self.serve_time)
