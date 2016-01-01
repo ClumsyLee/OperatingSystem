@@ -11,7 +11,7 @@ class Ticket(object):
     """Bank ticket"""
     def __init__(self, number):
         self.number = number
-        self.custom = Semaphore(0)
+        self.customer = Semaphore(0)
         self.clerk = Semaphore(0)
         self.clerk_name = None
 
@@ -19,44 +19,44 @@ class Ticket(object):
         return str(self.number)
 
     def wait(self):
-        self.custom.release()
+        self.customer.release()
         self.clerk.acquire()
         return self.clerk_name
 
     def call(self, clerk_name):
-        self.custom.acquire()
+        self.customer.acquire()
         self.clerk_name = clerk_name
         self.clerk.release()
 
     def satisfied(self):
-        self.custom.release()
+        self.customer.release()
 
     def serve(self):
-        self.custom.acquire()
+        self.customer.acquire()
 
 class TicketMachine(object):
     """Bank ticket machine"""
     def __init__(self, max_tickets=float('inf')):
-        self.next_custom_number = 0
+        self.next_customer_number = 0
         self.next_clerk_number = 0
         self.tickets = []
         self.max_tickets = max_tickets
 
         self.available = Semaphore()
 
-    def custom_get_ticket(self):
+    def customer_get_ticket(self):
         self.available.acquire()
 
-        if self.next_custom_number >= self.max_tickets:
+        if self.next_customer_number >= self.max_tickets:
             ticket = None  # No more tickets.
-        elif self.next_custom_number >= self.next_clerk_number:
+        elif self.next_customer_number >= self.next_clerk_number:
             # We need a new ticket.
-            ticket = Ticket(self.next_custom_number)
+            ticket = Ticket(self.next_customer_number)
             self.tickets.append(ticket)
         else:
             # The ticket already exists.
-            ticket = self.tickets[self.next_custom_number]
-        self.next_custom_number += 1
+            ticket = self.tickets[self.next_customer_number]
+        self.next_customer_number += 1
 
         self.available.release()  # Make self available.
         return ticket
@@ -66,7 +66,7 @@ class TicketMachine(object):
 
         if self.next_clerk_number >= self.max_tickets:
             ticket = None  # No more tickets.
-        elif self.next_clerk_number >= self.next_custom_number:
+        elif self.next_clerk_number >= self.next_customer_number:
             # We need a new ticket.
             ticket = Ticket(self.next_clerk_number)
             self.tickets.append(ticket)
@@ -78,15 +78,15 @@ class TicketMachine(object):
         self.available.release()  # Make self available.
         return ticket
 
-class Custom(Thread):
-    """Bank custom"""
+class Customer(Thread):
+    """Bank customer"""
     def __init__(self, name, arrive_time, serve_time, ticket_machine):
         super().__init__(name=name)
         self.arrive_time = arrive_time
         self.serve_time = serve_time
         self.ticket_machine = ticket_machine
 
-        self.logger = logging.getLogger('Custom ' + name)
+        self.logger = logging.getLogger('Customer ' + name)
 
     def run(self):
         global begin_time
@@ -95,7 +95,7 @@ class Custom(Thread):
         arrive_time = time() - begin_time
 
         self.logger.info('Arrived, trying to get a ticket.')
-        ticket = self.ticket_machine.custom_get_ticket()
+        ticket = self.ticket_machine.customer_get_ticket()
         self.logger.info('Got ticket %s.', ticket)
 
         clerk_name = ticket.wait()
@@ -130,7 +130,7 @@ class Clerk(Thread):
         while True:
             ticket = self.ticket_machine.clerk_get_ticket()
             if ticket is None:
-                self.logger.info('No more customs, stop working.')
+                self.logger.info('No more customers, stop working.')
                 return
 
             self.logger.info('Free now, assigned to ticket %s.', ticket)
@@ -142,16 +142,16 @@ class Clerk(Thread):
             ticket.serve()
             self.logger.info('Done ticket %s.', ticket)
 
-def load_customs(filename, ticket_machine):
-    customs = []
+def load_customers(filename, ticket_machine):
+    customers = []
     for line in open(filename):
         name, arrive_time, serve_time = line.split()
         arrive_time = float(arrive_time)
         serve_time = float(serve_time)
-        customs.append(Custom(name, arrive_time, serve_time, ticket_machine))
+        customers.append(Customer(name, arrive_time, serve_time, ticket_machine))
 
-    ticket_machine.max_tickets = len(customs)
-    return customs
+    ticket_machine.max_tickets = len(customers)
+    return customers
 
 def load_clerks(number, ticket_machine):
     clerks = []
@@ -159,13 +159,13 @@ def load_clerks(number, ticket_machine):
         clerks.append(Clerk(str(i), ticket_machine))
     return clerks
 
-def run(customs, clerks):
+def run(customers, clerks):
     # Record begin time.
     global begin_time
     begin_time = time()
 
-    for custom in customs:
-        custom.start()
+    for customer in customers:
+        customer.start()
     for clerk in clerks:
         clerk.start()
 
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         exit(1)
 
     ticket_machine = TicketMachine()
-    customs = load_customs(argv[1], ticket_machine)
+    customers = load_customers(argv[1], ticket_machine)
     clerks = load_clerks(int(argv[2]), ticket_machine)
 
-    run(customs, clerks)
+    run(customers, clerks)
