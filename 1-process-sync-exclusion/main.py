@@ -111,11 +111,30 @@ class Clerk(Thread):
             ticket.serve()
             self.logger.info('Done ticket %s.', ticket)
 
+def load_customs(filename, ticket_machine):
+    customs = []
+    for line in open(filename):
+        name, arrive_time, serve_time = line.split()
+        arrive_time = float(arrive_time)
+        serve_time = float(serve_time)
+        customs.append(Custom(name, arrive_time, serve_time, ticket_machine))
+    return customs
+
+def load_clerks(number, ticket_machine):
+    clerks = []
+    for i in range(number):
+        clerks.append(Clerk(str(i), ticket_machine))
+    return clerks
+
+def run(customs, clerks):
+    for custom in customs:
+        custom.start()
+    for clerk in clerks:
+        clerk.start()
+
 if __name__ == '__main__':
     ticket_machine = TicketMachine()
-    Custom('1', 1, 10, ticket_machine).start()
-    Custom('2', 5, 2, ticket_machine).start()
-    Custom('3', 6, 3, ticket_machine).start()
-    Custom('4', 6, 3, ticket_machine).start()
-    Clerk('1', ticket_machine).start()
-    Clerk('2', ticket_machine).start()
+    customs = load_customs('input.txt', ticket_machine)
+    clerks = load_clerks(2, ticket_machine)
+
+    run(customs, clerks)
