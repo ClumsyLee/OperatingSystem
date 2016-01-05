@@ -1,6 +1,6 @@
 from queue import Queue
 from threading import Thread, Lock
-from time import sleep
+from time import sleep, time
 
 class SortJob(object):
     """docstring for SortJob"""
@@ -100,8 +100,11 @@ if __name__ == '__main__':
 
     lock = Lock()
     pool = ThreadPool(20)
+
+    start_time = time()
     pool.add_job(SortJob(numbers, 0, len(numbers), lock))
     pool.join()
+    print(time() - start_time, 'seconds used')
 
     # Test
     last = -1
