@@ -39,6 +39,7 @@ Environment:
 #define RB_BLACK    1
 
 #define rb_parent(rb)    (SANITIZE_PARENT_NODE((rb)->u1.Parent))
+#define rb_red_parent(rb)  (rb_parent(rb))
 
 #define rb_color(rb)     ((rb)->u1.Balance)
 #define rb_is_red(rb)      (!rb_color(rb))
@@ -49,10 +50,41 @@ static inline void rb_set_parent(PMMADDRESS_NODE rb, PMMADDRESS_NODE p)
     rb->u1.Parent = p;
 }
 
-static inline void rb_set_color(PMMADDRESS_NODE rb, int color)
+static inline void rb_set_parent_color(PMMADDRESS_NODE rb,
+                                       PMMADDRESS_NODE p, int color)
 {
+    rb_set_parent(rb, p);
     rb->u1.Balance = color;
 }
+
+static inline void
+__rb_change_child(PMMADDRESS_NODE old, PMMADDRESS_NODE new_,
+                  PMMADDRESS_NODE parent, PMMADDRESS_NODE root)
+{
+    if (parent) {
+        if (parent->LeftChild == old)
+            parent->LeftChild = new_;
+        else
+            parent->RightChild = new_;
+    } else
+        root->RightChild = new_;
+}
+
+/*
+ * Helper function for rotations:
+ * - old's parent and color get assigned to new
+ * - old gets assigned new as a parent and 'color' as a color.
+ */
+static inline void
+__rb_rotate_set_parents(PMMADDRESS_NODE old, PMMADDRESS_NODE new_,
+                        PMMADDRESS_NODE root, int color)
+{
+    PMMADDRESS_NODE parent = rb_parent(old);
+    new_->__rb_parent_color = old->__rb_parent_color;
+    rb_set_parent_color(old, new_, color);
+    __rb_change_child(old, new_, parent, root);
+}
+
 
 
 #if !defined (_USERMODE)
@@ -1398,7 +1430,126 @@ Environment:
         // to simplify loop control.
         //
 
+        // Beginning of ported code.
+        PMMADDRESS_NODE node = NodeToInsert,
+                        root = &Table->BalancedRoot,
+                        parent = rb_red_parent(node),
+                        gparent,
+                        tmp;
 
+        while (true) {
+            /*
+             * Loop invariant: node is red
+             *
+             * If there is a black parent, we are done.
+             * Otherwise, take some corrective action as we don't
+             * want a red root or two consecutive red nodes.
+             */
+            if (!parent) {
+                rb_set_parent_color(node, NULL, RB_BLACK);
+                break;
+            } else if (rb_is_black(parent))
+                break;
+
+            gparent = rb_red_parent(parent);
+
+            tmp = gparent->RightChild;
+            if (parent != tmp) {    /* parent == gparent->LeftChild */
+                if (tmp && rb_is_red(tmp)) {
+                    /*
+                     * Case 1 - color flips
+                     *
+                     *       G            g
+                     *      / \          / \
+                     *     p   u  -->   P   U
+                     *    /            /
+                     *   n            n
+                     *
+                     * However, since g's parent might be red, and
+                     * 4) does not allow this, we need to recurse
+                     * at g.
+                     */
+                    rb_set_parent_color(tmp, gparent, RB_BLACK);
+                    rb_set_parent_color(parent, gparent, RB_BLACK);
+                    node = gparent;
+                    parent = rb_parent(node);
+                    rb_set_parent_color(node, parent, RB_RED);
+                    continue;
+                }
+
+                tmp = parent->RightChild;
+                if (node == tmp) {
+                    /*
+                     * Case 2 - left rotate at parent
+                     *
+                     *      G             G
+                     *     / \           / \
+                     *    p   U  -->    n   U
+                     *     \           /
+                     *      n         p
+                     *
+                     * This still leaves us in violation of 4), the
+                     * continuation into Case 3 will fix that.
+                     */
+                    tmp = node->LeftChild;
+                    parent->RightChild = tmp;
+                    node->LeftChild = parent;
+                    if (tmp)
+                        rb_set_parent_color(tmp, parent, RB_BLACK);
+                    rb_set_parent_color(parent, node, RB_RED);
+                    parent = node;
+                    tmp = node->RightChild;
+                }
+
+                /*
+                 * Case 3 - right rotate at gparent
+                 *
+                 *        G           P
+                 *       / \         / \
+                 *      p   U  -->  n   g
+                 *     /                 \
+                 *    n                   U
+                 */
+                gparent->LeftChild = tmp; /* == parent->RightChild */
+                parent->RightChild = gparent;
+                if (tmp)
+                    rb_set_parent_color(tmp, gparent, RB_BLACK);
+                __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+                break;
+            } else {
+                tmp = gparent->LeftChild;
+                if (tmp && rb_is_red(tmp)) {
+                    /* Case 1 - color flips */
+                    rb_set_parent_color(tmp, gparent, RB_BLACK);
+                    rb_set_parent_color(parent, gparent, RB_BLACK);
+                    node = gparent;
+                    parent = rb_parent(node);
+                    rb_set_parent_color(node, parent, RB_RED);
+                    continue;
+                }
+
+                tmp = parent->LeftChild;
+                if (node == tmp) {
+                    /* Case 2 - right rotate at parent */
+                    tmp = node->RightChild;
+                    parent->LeftChild = tmp;
+                    node->RightChild = parent;
+                    if (tmp)
+                        rb_set_parent_color(tmp, parent, RB_BLACK);
+                    rb_set_parent_color(parent, node, RB_RED);
+                    parent = node;
+                    tmp = node->LeftChild;
+                }
+
+                /* Case 3 - left rotate at gparent */
+                gparent->RightChild = tmp; /* == parent->LeftChild */
+                parent->LeftChild = gparent;
+                if (tmp)
+                    rb_set_parent_color(tmp, gparent, RB_BLACK);
+                __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+                break;
+            }
+        }  // End of ported code.
     }
 
     return;
