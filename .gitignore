@@ -1,3 +1,7 @@
+# exp2 data files.
+/2-advanced-ipc/random.txt
+/2-advanced-ipc/sorted.txt
+
 # Only track relevant files in WRK
 /3-file-system/WRK-v1.2/*
 !/3-file-system/WRK-v1.2/base/
