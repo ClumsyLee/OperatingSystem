@@ -1350,22 +1350,12 @@ Environment:
     PMMADDRESS_NODE NodeOrParent;
     TABLE_SEARCH_RESULT SearchResult;
 
-    ASSERT((Table->NumberGenericTableElements >= MiWorstCaseFill[Table->DepthOfTree]) &&
-           (Table->NumberGenericTableElements <= MiBestCaseFill[Table->DepthOfTree]));
-
     SearchResult = MiFindNodeOrParent (Table,
                                        NodeToInsert->StartingVpn,
                                        &NodeOrParent);
 
-    ASSERT (SearchResult != TableFoundNode);
-
     //
     // The node wasn't in the (possibly empty) tree.
-    //
-    // We just check that the table isn't getting too big.
-    //
-
-    ASSERT (Table->NumberGenericTableElements != (MAXULONG-1));
 
     NodeToInsert->LeftChild = NULL;
     NodeToInsert->RightChild = NULL;
@@ -1379,13 +1369,8 @@ Environment:
     if (SearchResult == TableEmptyTree) {
 
         Table->BalancedRoot.RightChild = NodeToInsert;
-        NodeToInsert->u1.Parent = &Table->BalancedRoot;
-        ASSERT (NodeToInsert->u1.Balance == 0);
-        ASSERT(Table->DepthOfTree == 0);
+        rb_set_parent(NodeToInsert, &Table->BalancedRoot);
         Table->DepthOfTree = 1;
-
-    ASSERT((Table->NumberGenericTableElements >= MiWorstCaseFill[Table->DepthOfTree]) &&
-           (Table->NumberGenericTableElements <= MiBestCaseFill[Table->DepthOfTree]));
 
     }
     else {
@@ -1400,8 +1385,7 @@ Environment:
             NodeOrParent->RightChild = NodeToInsert;
         }
 
-        NodeToInsert->u1.Parent = NodeOrParent;
-        ASSERT (NodeToInsert->u1.Balance == 0);
+        rb_set_parent(NodeToInsert, NodeOrParent);
 
         //
         // The above completes the standard binary tree insertion, which
@@ -1414,100 +1398,8 @@ Environment:
         // to simplify loop control.
         //
 
-        PRINT("REBADJ E: Table %p, Bal %x -> %x\n", Table, Table->BalancedRoot.u1.Balance, -1);
-        COUNT_BALANCE_MAX ((SCHAR)-1);
-        Table->BalancedRoot.u1.Balance = (ULONG_PTR) -1;
 
-        //
-        // Now loop to adjust balance factors and see if any balance operations
-        // must be performed, using NodeOrParent to ascend the tree.
-        //
-
-        do {
-
-            SCHAR a;
-
-            //
-            // Calculate the next adjustment.
-            //
-
-            a = 1;
-            if (MiIsLeftChild (R)) {
-                a = -1;
-            }
-
-            PRINT("LW 0: Table %p, Bal %x, %x\n", Table, Table->BalancedRoot.u1.Balance, a);
-            PRINT("LW 0: R Node %p, Bal %x, %x\n", R, R->u1.Balance, 1);
-            PRINT("LW 0: S Node %p, Bal %x, %x\n", S, S->u1.Balance, 1);
-
-            //
-            // If this node was balanced, show that it is no longer and
-            // keep looping.  This is essentially A6 of Knuth's algorithm,
-            // where he updates all of the intermediate nodes on the
-            // insertion path which previously had balance factors of 0.
-            // We are looping up the tree via Parent pointers rather than
-            // down the tree as in Knuth.
-            //
-
-            if (S->u1.Balance == 0) {
-
-                PRINT("REBADJ F: Node %p, Bal %x -> %x\n", S, S->u1.Balance, a);
-                COUNT_BALANCE_MAX ((SCHAR)a);
-                S->u1.Balance = a;
-                R = S;
-                S = SANITIZE_PARENT_NODE (S->u1.Parent);
-            }
-            else if ((SCHAR) S->u1.Balance != a) {
-
-                PRINT("LW 1: Table %p, Bal %x, %x\n", Table, Table->BalancedRoot.u1.Balance, -1);
-
-                //
-                // If this node has the opposite balance, then the tree got
-                // more balanced (or we hit the root) and we are done.
-                //
-                // Step A7.ii
-                //
-
-                S->u1.Balance = 0;
-
-                //
-                // If S is actually the root, then this means the depth
-                // of the tree just increased by 1!  (This is essentially
-                // A7.i, but we just initialized the root balance to force
-                // it through here.)
-                //
-
-                if (Table->BalancedRoot.u1.Balance == 0) {
-                    Table->DepthOfTree += 1;
-                }
-
-                break;
-            }
-            else {
-
-                PRINT("LW 2: Table %p, Bal %x, %x\n", Table, Table->BalancedRoot.u1.Balance, -1);
-
-                //
-                // The tree became unbalanced (path length differs
-                // by 2 below us) and we need to do one of the balancing
-                // operations, and then we are done.  The RebalanceNode routine
-                // does steps A7.iii, A8 and A9.
-                //
-
-                MiRebalanceNode (S);
-                break;
-            }
-            PRINT("LW 3: Table %p, Bal %x, %x\n", Table, Table->BalancedRoot.u1.Balance, -1);
-        } while (TRUE);
-        PRINT("LW 4: Table %p, Bal %x, %x\n", Table, Table->BalancedRoot.u1.Balance, -1);
     }
-
-    //
-    // Sanity check tree size and depth.
-    //
-
-    ASSERT((Table->NumberGenericTableElements >= MiWorstCaseFill[Table->DepthOfTree]) &&
-           (Table->NumberGenericTableElements <= MiBestCaseFill[Table->DepthOfTree]));
 
     return;
 }
