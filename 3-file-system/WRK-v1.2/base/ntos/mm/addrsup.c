@@ -1,6 +1,6 @@
 /*++
 
-Copyright (c) Microsoft Corporation. All rights reserved. 
+Copyright (c) Microsoft Corporation. All rights reserved.
 
 You may only use this code if you agree to the terms of the Windows Research Kernel Source Code License agreement (see License.txt).
 If you do not agree to the terms, do not use the code.
@@ -33,8 +33,29 @@ Environment:
 
 #include "mi.h"
 
+#define RB_RED      0
+#define RB_BLACK    1
+
+#define rb_parent(rb)    (SANITIZE_PARENT_NODE((rb)->u1.Parent))
+
+#define rb_color(rb)     ((rb)->u1.Balance)
+#define rb_is_red(rb)      (!rb_color(rb))
+#define rb_is_black(rb)    (rb_color(rb))
+
+static inline void rb_set_parent(PMMADDRESS_NODE rb, PMMADDRESS_NODE p)
+{
+    rb->u1.Parent = p;
+}
+
+static inline void rb_set_color(PMMADDRESS_NODE rb, int color)
+{
+    rb->u1.Balance = color;
+}
+
+
+
 #if !defined (_USERMODE)
-#define PRINT 
+#define PRINT
 #define COUNT_BALANCE_MAX(a)
 #else
 extern MM_AVL_TABLE MmSectionBasedRoot;
@@ -1623,7 +1644,7 @@ Return Value:
     if (Next->RightChild == NULL) {
 
         do {
-                
+
             Parent = SANITIZE_PARENT_NODE (Next->u1.Parent);
 
             ASSERT (Parent != NULL);
