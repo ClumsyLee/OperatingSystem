@@ -33,6 +33,8 @@ Environment:
 
 #include "mi.h"
 
+
+// Ported definations.
 #define RB_RED      0
 #define RB_BLACK    1
 
@@ -51,7 +53,6 @@ static inline void rb_set_color(PMMADDRESS_NODE rb, int color)
 {
     rb->u1.Balance = color;
 }
-
 
 
 #if !defined (_USERMODE)
