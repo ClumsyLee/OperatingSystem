@@ -108,9 +108,63 @@ static inline void rb_set_parent_color(struct rb_node *rb,
 
 ## WRK
 
-为了完成移植工作，我们还需要了解 WRK 中 VAD 树的结构和接口。
+为了完成移植工作，我们还需要了解 WRK 中 VAD 树。我们的目标是找到 VAD 树所使用的 AVL 树，并
+在不修改接口的情况下对 AVL 树的实现进行更改，将其内部更改成红黑树。
+
+首先，VAD 所使用的 AVL 树定义在 `base/ntos/mm/addrsup.c` 中。根据该文件顶部的描述，该
+模块是基于 Knuth 的 “The Art of Computer Programming, Volume 3, Sorting and Searching” 第二版中的 AVL 树实现的。
+
+从 \WRK-v1.2\base\ntos\inc\ps.h 我们可以找到 AVL 树结构的定义。
+
+```c
+typedef struct _MM_AVL_TABLE {
+    MMADDRESS_NODE  BalancedRoot;
+    ULONG_PTR DepthOfTree: 5;
+    ULONG_PTR Unused: 3;
+#if defined (_WIN64)
+    ULONG_PTR NumberGenericTableElements: 56;
+#else
+    ULONG_PTR NumberGenericTableElements: 24;
+#endif
+    PVOID NodeHint;
+    PVOID NodeFreeHint;
+} MM_AVL_TABLE, *PMM_AVL_TABLE;
+
+typedef struct _MMADDRESS_NODE {
+    union {
+        LONG_PTR Balance : 2;
+        struct _MMADDRESS_NODE *Parent;
+    } u1;
+    struct _MMADDRESS_NODE *LeftChild;
+    struct _MMADDRESS_NODE *RightChild;
+    ULONG_PTR StartingVpn;
+    ULONG_PTR EndingVpn;
+} MMADDRESS_NODE, *PMMADDRESS_NODE;
+
+```
 
 # 模块设计
+
+需要注意到的是，和我们一般编程时实现的不同，Linux 和 WRK 中的结点都是内嵌在真正的数据结构
+当中的。例如，若想使用 Linux 中的红黑树，则应先定义类似下面数据结构：
+
+```c
+struct mytype {
+  struct rb_node node;
+  char *keystring;
+};
+```
+
+同样的，从 WRK 的 AVL 树中的 `MMADDRESS_NODE` 也是与 `rb_node` 类似的内嵌结构。而
+`MMVAD` 则是包含内嵌结点的结构，即 AVL 树的真正结点。需要注意的是，在 Linux 中用户需要针对
+真正结点定义自己的插入和删除函数；而 WRK 中则更进一步，用 `MM_AVL_TABLE` 对 AVL 树进行了
+封装，集成了插入和删除函数。
+
+所以，我们只需要修改 WRK 中与 `MM_AVL_TABLE` 有关的操作，即
+`\WRK-v1.2\base\ntos\mm\addrsup.c` 中的 `MiInsertNode` 和 `MiRemoveNode`，便可以
+达到修改 AVL 树的效果。为了尽量减小修改，我们沿用原内嵌结点定义，并将其中的 `Balance` 域作为
+红黑树结点颜色。
+
 
 # 代码实现
 
