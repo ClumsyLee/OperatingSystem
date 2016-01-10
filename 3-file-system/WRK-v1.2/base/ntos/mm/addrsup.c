@@ -38,32 +38,34 @@ Environment:
 #define RB_RED      0
 #define RB_BLACK    1
 
-#define __rb_parent(pc)    ((PMMADDRESS_NODE)(pc & ~3))
+#define __rb_parent(pc)    ((PMMADDRESS_NODE)((long)(pc) & ~3))
 #define rb_parent(rb)      (SANITIZE_PARENT_NODE((rb)->u1.Parent))
-#define rb_red_parent(red) ((rb)->u1.Parent)
+#define rb_red_parent(red) ((red)->u1.Parent)
 
-#define __rb_color(pc)     ((pc) & 1)
+#define __rb_color(pc)     ((long)(pc) & 1)
 #define __rb_is_black(pc)  __rb_color(pc)
 #define __rb_is_red(pc)    (!__rb_color(pc))
 #define rb_color(rb)       __rb_color((rb)->u1.Parent)
 #define rb_is_red(rb)      __rb_is_red((rb)->u1.Parent)
 #define rb_is_black(rb)    __rb_is_black((rb)->u1.Parent)
+#define rb_set_red(rb)     ((rb)->u1.Balance = RB_RED)
+#define rb_set_black(rb)   ((rb)->u1.Balance = RB_BLACK)
 
 
 
-static inline void rb_set_parent(PMMADDRESS_NODE rb, PMMADDRESS_NODE p)
+static void rb_set_parent(PMMADDRESS_NODE rb, PMMADDRESS_NODE p)
 {
-    rb->u1.Parent = rb_color(rb) | p;
+    rb->u1.Parent = (PMMADDRESS_NODE)(rb_color(rb) + p);
 }
 
-static inline void rb_set_parent_color(PMMADDRESS_NODE rb,
+static void rb_set_parent_color(PMMADDRESS_NODE rb,
                                        PMMADDRESS_NODE p, int color)
 {
     rb->u1.Parent = p;
     rb->u1.Balance = color;
 }
 
-static inline void
+static void
 __rb_change_child(PMMADDRESS_NODE old, PMMADDRESS_NODE new_,
                   PMMADDRESS_NODE parent, PMMADDRESS_NODE root)
 {
@@ -81,12 +83,12 @@ __rb_change_child(PMMADDRESS_NODE old, PMMADDRESS_NODE new_,
  * - old's parent and color get assigned to new
  * - old gets assigned new as a parent and 'color' as a color.
  */
-static inline void
+static void
 __rb_rotate_set_parents(PMMADDRESS_NODE old, PMMADDRESS_NODE new_,
                         PMMADDRESS_NODE root, int color)
 {
     PMMADDRESS_NODE parent = rb_parent(old);
-    new_->Parent = old->Parent;
+    new_->u1.Parent = old->u1.Parent;
     rb_set_parent_color(old, new_, color);
     __rb_change_child(old, new_, parent, root);
 }
@@ -111,14 +113,14 @@ __rb_erase_augmented(PMMADDRESS_NODE node, PMMADDRESS_NODE root)
         parent = __rb_parent(pc);
         __rb_change_child(node, child, parent, root);
         if (child) {
-            child->Parent = pc;
+            child->u1.Parent = pc;
             rebalance = NULL;
         } else
             rebalance = __rb_is_black(pc) ? parent : NULL;
         tmp = parent;
     } else if (!child) {
         /* Still case 1, but this time the child is node->LeftChild */
-        tmp->Parent = pc = node->Parent;
+        tmp->u1.Parent = pc = node->u1.Parent;
         parent = __rb_parent(pc);
         __rb_change_child(node, tmp, parent, root);
         rebalance = NULL;
@@ -169,17 +171,17 @@ __rb_erase_augmented(PMMADDRESS_NODE node, PMMADDRESS_NODE root)
         successor->LeftChild = tmp;
         rb_set_parent(tmp, successor);
 
-        pc = node->Parent;
+        pc = node->u1.Parent;
         tmp = __rb_parent(pc);
         __rb_change_child(node, successor, tmp, root);
 
         if (child2) {
-            successor->Parent = pc;
+            successor->u1.Parent = pc;
             rb_set_parent_color(child2, parent, RB_BLACK);
             rebalance = NULL;
         } else {
-            unsigned long pc2 = successor->Parent;
-            successor->Parent = pc;
+            PMMADDRESS_NODE pc2 = successor->u1.Parent;
+            successor->u1.Parent = pc;
             rebalance = __rb_is_black(pc2) ? parent : NULL;
         }
         tmp = successor;
@@ -197,7 +199,7 @@ ____rb_erase_color(PMMADDRESS_NODE parent, PMMADDRESS_NODE root)
 {
     PMMADDRESS_NODE node = NULL, sibling, tmp1, tmp2;
 
-    while (true) {
+    while (1) {
         /*
          * Loop invariants:
          * - node is black (or NULL on first iteration)
@@ -1161,7 +1163,7 @@ Environment:
 
 {
     PMMADDRESS_NODE rebalance, root = &Table->BalancedRoot;
-    rebalance = __rb_erase_augmented(node, root);
+    rebalance = __rb_erase_augmented(NodeToDelete, root);
     if (rebalance)
         ____rb_erase_color(rebalance, root);
 
@@ -1456,6 +1458,7 @@ Environment:
 
         PMMADDRESS_NODE R = NodeToInsert;
         PMMADDRESS_NODE S = NodeOrParent;
+        PMMADDRESS_NODE node, root, parent, gparent, tmp;
 
         if (SearchResult == TableInsertAsLeft) {
             NodeOrParent->LeftChild = NodeToInsert;
@@ -1464,7 +1467,7 @@ Environment:
             NodeOrParent->RightChild = NodeToInsert;
         }
 
-        rb_set_parent(NodeToInsert, NodeOrParent);
+        // rb_set_parent(NodeToInsert, NodeOrParent);
 
         //
         // The above completes the standard binary tree insertion, which
@@ -1478,13 +1481,12 @@ Environment:
         //
 
         // Beginning of ported code.
-        PMMADDRESS_NODE node = NodeToInsert,
-                        root = &Table->BalancedRoot,
-                        parent = rb_red_parent(node),
-                        gparent,
-                        tmp;
+        // PMMADDRESS_NODE node = NodeToInsert;
+        node = NodeToInsert;
+        root = &Table->BalancedRoot;
+        parent = rb_red_parent(node);
 
-        while (true) {
+        while (1) {
             /*
              * Loop invariant: node is red
              *
