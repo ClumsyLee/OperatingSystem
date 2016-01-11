@@ -1,4 +1,5 @@
 from queue import Queue
+from sys import argv, exit
 from threading import Thread, Lock
 from time import sleep, time
 
@@ -92,19 +93,28 @@ class ThreadPool(object):
 
 
 if __name__ == '__main__':
+    if len(argv) != 3:
+        print('Usage:', argv[0], '<thread number> <iters>')
+        exit()
+
+    thread_num = int(argv[1])
+    iters = int(argv[2])
+
     numbers = []
 
     with open('random.txt') as f:
         for line in f:
             numbers.append(float(line))
 
-    lock = Lock()
-    pool = ThreadPool(20)
-
     start_time = time()
-    pool.add_job(SortJob(numbers, 0, len(numbers), lock))
-    pool.join()
-    print(time() - start_time, 'seconds used')
+    for i in range(iters):
+        numbers_copy = numbers[:]
+        lock = Lock()
+        pool = ThreadPool(thread_num)
+
+        pool.add_job(SortJob(numbers_copy, 0, len(numbers_copy), lock))
+        pool.join()
+    print((time() - start_time) / iters)
 
     # Test
     last = -1
@@ -119,5 +129,3 @@ if __name__ == '__main__':
     with open('sorted.txt', 'w') as f:
         for number in numbers:
             print('{:6f}'.format(number), file=f)
-
-
