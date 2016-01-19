@@ -55,7 +55,7 @@ Environment:
 
 static void rb_set_parent(PMMADDRESS_NODE rb, PMMADDRESS_NODE p)
 {
-    rb->u1.Parent = (PMMADDRESS_NODE)(rb_color(rb) + p);
+    rb->u1.Parent = (PMMADDRESS_NODE)(rb_color(rb) | (long)p);
 }
 
 static void rb_set_parent_color(PMMADDRESS_NODE rb,
