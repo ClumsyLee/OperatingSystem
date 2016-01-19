@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     # Test
     last = -1
-    for x in numbers:
+    for x in numbers_copy:
         if last > x:
             print('Not sorted.')
             break
@@ -127,5 +127,5 @@ if __name__ == '__main__':
         print('sorted.')
 
     with open('sorted.txt', 'w') as f:
-        for number in numbers:
+        for number in numbers_copy:
             print('{:6f}'.format(number), file=f)
