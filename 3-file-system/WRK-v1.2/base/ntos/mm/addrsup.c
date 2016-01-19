@@ -35,16 +35,16 @@ Environment:
 
 
 // Ported definations.
-#define RB_RED      0
-#define RB_BLACK    1
+#define RB_RED      1
+#define RB_BLACK    0
 
 #define __rb_parent(pc)    ((PMMADDRESS_NODE)((long)(pc) & ~3))
 #define rb_parent(rb)      (SANITIZE_PARENT_NODE((rb)->u1.Parent))
-#define rb_red_parent(red) ((red)->u1.Parent)
+#define rb_red_parent(rb)  (rb_parent(rb))
 
 #define __rb_color(pc)     ((long)(pc) & 1)
-#define __rb_is_black(pc)  __rb_color(pc)
-#define __rb_is_red(pc)    (!__rb_color(pc))
+#define __rb_is_black(pc)  (!__rb_color(pc))
+#define __rb_is_red(pc)    __rb_color(pc)
 #define rb_color(rb)       __rb_color((rb)->u1.Parent)
 #define rb_is_red(rb)      __rb_is_red((rb)->u1.Parent)
 #define rb_is_black(rb)    __rb_is_black((rb)->u1.Parent)
