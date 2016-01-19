@@ -1467,7 +1467,7 @@ Environment:
             NodeOrParent->RightChild = NodeToInsert;
         }
 
-        // rb_set_parent(NodeToInsert, NodeOrParent);
+        rb_set_parent(NodeToInsert, NodeOrParent);
 
         //
         // The above completes the standard binary tree insertion, which
