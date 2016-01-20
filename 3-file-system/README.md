@@ -114,7 +114,7 @@ static inline void rb_set_parent_color(struct rb_node *rb,
 首先，VAD 所使用的 AVL 树定义在 `base/ntos/mm/addrsup.c` 中。根据该文件顶部的描述，该
 模块是基于 Knuth 的 “The Art of Computer Programming, Volume 3, Sorting and Searching” 第二版中的 AVL 树实现的。
 
-从 \WRK-v1.2\base\ntos\inc\ps.h 我们可以找到 AVL 树结构的定义。
+从 /WRK-v1.2/base/ntos/inc/ps.h 我们可以找到 AVL 树结构的定义。
 
 ```c
 typedef struct _MM_AVL_TABLE {
@@ -161,7 +161,7 @@ struct mytype {
 封装，集成了插入和删除函数。
 
 所以，我们只需要修改 WRK 中与 `MM_AVL_TABLE` 有关的操作，即
-`\WRK-v1.2\base\ntos\mm\addrsup.c` 中的 `MiInsertNode` 和 `MiRemoveNode`，便可以
+`/WRK-v1.2/base/ntos/mm/addrsup.c` 中的 `MiInsertNode` 和 `MiRemoveNode`，便可以
 达到修改 AVL 树的效果。为了尽量减小修改，我们沿用原内嵌结点定义，并将其中的 `Balance` 域作为
 红黑树结点颜色。
 
@@ -1015,3 +1015,34 @@ index 5842f18..f18ac49 100644
 ```
 
 # 实验结果
+
+为了简化编译的流程，我们使用如下批处理文件来编译内核，并将编译出的二进制文件复制到合适的地方：
+
+```dos
+path \wrk-v1.2\tools\x86;%path%
+cd \wrk-v1.2\base\ntos
+nmake -nologo x86=
+copy /y \WRK-v1.2\base\ntos\BUILD\EXE\wrkx86.exe \WINDOWS\system32\
+```
+
+然后在重启后选择进入 WRK 内核，系统能正常开机和运行，同时在正常的操作下不过崩溃，这便说明我们
+成功地将红黑树移植到了 WRK 内存管理中。
+
+# 实验感想
+
+本次实验的工作量确实比较大。一来需要阅读大量的 WRK 和 Linux 源代码，并理解二者的设计思路。
+二来移植的时候需要考虑到二者的结构差异，做到在影响最小的情况下将算法替换。这就要求我们能尽量
+复用 WRK 中原有的 AVL 树的结构，并在其原有结构上移植红黑树。
+
+同时，我也第一次接触到了内核调试这一高大上的概念。与一般的程序调试不同的是，内核调试是在两个
+操作系统之间进行的，所以需要通过串口等方式传递信息。在本次实验中，我们是在虚拟机中虚拟了一个
+串口，从而在一台物理主机上实现了调试。
+
+最后，我再次明白了这样一个道理：
+
+> If you do it once, great. If you do it twice, frown. If you do it three times, automate it.
+
+开始时，我每次编译都是手动输入那些指令，然后将生成的二进制文件手动复制到 system32 文件夹的，
+在经历了近十次痛苦的重复工作之后，我终于写了一个批处理文件。世界瞬间清静了……
+
+总之，这次实验从许多方面来说都对我有很大帮助。读代码，移植，调试……真的是锻炼了综合能力呢！
